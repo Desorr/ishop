@@ -4,12 +4,11 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.types import CallbackQuery
 
-from ishop.config import API_KEY
+from ishop.config import API_KEY, PAYMENT_TOKEN
 from ishop.data_base import sqlite_db
-from ishop.data_base.sqlite_db import get_product_info
-
+from ishop.data_base.sqlite_db import get_product_info, get_product_price
 from ishop.handlers.application_user import RequestState
-from ishop.keyboards import kb_client, ikb_client, ikb_client_iphone
+from ishop.keyboards import kb_client, ikb_client, ikb_client_iphone11, ikb_client_iphone12, ikb_client_iphone13
 from ishop.create_bot import bot
 from ishop.utils import RequestData
 
@@ -53,20 +52,38 @@ async def shop_shop_command(message: types.Message):
     await message.delete()
 
 
+# Создаем товар для оплаты + конвертируем цену в тип float
+product_info_11 = get_product_info("iPhone 11")
+price11 = get_product_price("iPhone 11")
+product_info_12 = get_product_info("iPhone 12")
+price12 = get_product_price("iPhone 12")
+product_info_13 = get_product_info("iPhone 13")
+price13 = get_product_price("iPhone 13")
+
+
 # Инлайн кнопка для отображения информации о iphone 11
 # @dp.callback_query_handler(lambda query: query.data == 'iphone11')
 async def handle_iphone11(callback_query: CallbackQuery, state: FSMContext):
     product_info = get_product_info("iPhone 11")
     if product_info:
         photo, name, description, price = product_info
-        message_text = f'{name}\nОписание: {description}\nЦена: {price} BYN'
-        await bot.send_photo(callback_query.from_user.id, photo, message_text, reply_markup=ikb_client_iphone)
-        # Сохраните цену айфона в состоянии
+        message_text = f'{name}\nОписание: {description}\nЦена: {price} RUB'
+        await bot.send_photo(callback_query.from_user.id, photo, message_text, reply_markup=ikb_client_iphone11)
         async with state.proxy() as data:
             data['iphone_price'] = price
     else:
         await callback_query.message.answer("Информация о товаре не найдена.")
     await callback_query.answer()
+
+
+# Обработка кнопки Купить айфон 11
+# @dp.callback_query_handler(lambda query: query.data == 'buy_iphone11')
+async def handle_buy_iphone11(callback_query: types.CallbackQuery):
+    await callback_query.answer()
+    name, description, price = product_info_11[1], product_info_11[2], price11
+    price_in_kopecks = int(price * 100)
+    await bot.send_invoice(callback_query.from_user.id, name, description, 'invoice_payload_iphone11',
+                           PAYMENT_TOKEN, 'RUB', [types.LabeledPrice(name, price_in_kopecks)])
 
 
 # Инлайн кнопка для отображения информации о iphone 12
@@ -75,13 +92,23 @@ async def handle_iphone12(callback_query: CallbackQuery, state: FSMContext):
     product_info = get_product_info("iPhone 12")
     if product_info:
         photo, name, description, price = product_info
-        message_text = f'{name}\nОписание: {description}\nЦена: {price} BYN'
-        await bot.send_photo(callback_query.from_user.id, photo, message_text, reply_markup=ikb_client_iphone)
+        message_text = f'{name}\nОписание: {description}\nЦена: {price} RUB'
+        await bot.send_photo(callback_query.from_user.id, photo, message_text, reply_markup=ikb_client_iphone12)
         async with state.proxy() as data:
             data['iphone_price'] = price
     else:
         await callback_query.message.answer("Информация о товаре не найдена.")
     await callback_query.answer()
+
+
+# Обработка кнопки Купить айфон 12
+# @dp.callback_query_handler(lambda query: query.data == 'buy_iphone12')
+async def handle_buy_iphone12(callback_query: types.CallbackQuery):
+    await callback_query.answer()
+    name, description, price = product_info_12[1], product_info_12[2], price12
+    price_in_kopecks = int(price * 100)
+    await bot.send_invoice(callback_query.from_user.id, name, description, 'invoice_payload_iphone12',
+                           PAYMENT_TOKEN, 'RUB', [types.LabeledPrice(name, price_in_kopecks)])
 
 
 # Инлайн кнопка для отображения информации о iphone 13
@@ -90,13 +117,35 @@ async def handle_iphone13(callback_query: CallbackQuery, state: FSMContext):
     product_info = get_product_info("iPhone 13")
     if product_info:
         photo, name, description, price = product_info
-        message_text = f'{name}\nОписание: {description}\nЦена: {price} BYN'
-        await bot.send_photo(callback_query.from_user.id, photo, message_text, reply_markup=ikb_client_iphone)
+        message_text = f'{name}\nОписание: {description}\nЦена: {price} RUB'
+        await bot.send_photo(callback_query.from_user.id, photo, message_text, reply_markup=ikb_client_iphone13)
         async with state.proxy() as data:
             data['iphone_price'] = price
     else:
         await callback_query.message.answer("Информация о товаре не найдена.")
     await callback_query.answer()
+
+
+# Обработка кнопки Купить айфон 13
+# @dp.callback_query_handler(lambda query: query.data == 'buy_iphone13')
+async def handle_buy_iphone13(callback_query: types.CallbackQuery):
+    await callback_query.answer()
+    name, description, price = product_info_13[1], product_info_13[2], price13
+    price_in_kopecks = int(price * 100)
+    await bot.send_invoice(callback_query.from_user.id, name, description, 'invoice_payload_iphone13',
+                           PAYMENT_TOKEN, 'RUB', [types.LabeledPrice(name, price_in_kopecks)])
+
+
+# Бот подтверждает наличие товара
+# @dp.pre_checkout_query_handler()
+async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+
+# Обработка при успешной оплате
+# @dp.message_handler(content_types=types.ContentType.SUCCESSFUL_PAYMENT)
+async def success(message: types.Message):
+    await message.answer('Оплата прошла успешно😄')
 
 
 # Обработка инлайн кнопки Назад
@@ -141,13 +190,13 @@ async def handler_course(callback_query: CallbackQuery, state: FSMContext):
         data = response.json()
         if 'conversion_rates' in data:
             conversion_rates = data['conversion_rates']
-            if 'BYN' in conversion_rates:
-                byn_rate = conversion_rates['BYN']
-                iphone_price_usd = iphone_price / byn_rate
-                await callback_query.message.answer(f'Актуальный курс доллара: 1 USD = {byn_rate} BYN')
+            if 'RUB' in conversion_rates:
+                rub_rate = conversion_rates['RUB']
+                iphone_price_usd = iphone_price / rub_rate
+                await callback_query.message.answer(f'Актуальный курс доллара: 1 USD = {rub_rate} RUB')
                 await callback_query.message.answer(f'Стоимость айфона в долларах: {iphone_price_usd:.2f} USD')
             else:
-                await callback_query.message.answer('Курс доллара для BYN не найден.')
+                await callback_query.message.answer('Курс доллара для RUB не найден.')
         else:
             await callback_query.message.answer('Не удалось получить курс доллара.')
     except Exception as e:
@@ -166,13 +215,6 @@ async def stop_handler(message: types.Message, state: FSMContext):
     await message.reply("Вы прервали операцию по оставлению заявки")
 
 
-# Обработка инлайн кнопки Купить
-# @dp.callback_query_handler(lambda query: query.data == 'buy')
-async def handle_buy_button(callback_query: CallbackQuery):
-    await callback_query.answer("Данная функция будет добавлена позже.")
-    await callback_query.answer()
-
-
 # Регистрация хендлеров
 def register_handlers_client(dp: Dispatcher):
     dp.register_message_handler(command_start, commands=['start'])
@@ -180,12 +222,16 @@ def register_handlers_client(dp: Dispatcher):
     dp.register_message_handler(shop_place_command, Text(equals='О_нас', ignore_case=True))
     dp.register_message_handler(shop_menu_command, Text(equals='Меню', ignore_case=True))
     dp.register_message_handler(shop_shop_command, Text(equals='Магазин', ignore_case=True))
+    dp.register_pre_checkout_query_handler(process_pre_checkout_query)
+    dp.register_message_handler(success, content_types=types.ContentType.SUCCESSFUL_PAYMENT)
     dp.register_callback_query_handler(handle_iphone11, lambda query: query.data == 'iphone11')
     dp.register_callback_query_handler(handle_iphone12, lambda query: query.data == 'iphone12')
     dp.register_callback_query_handler(handle_iphone13, lambda query: query.data == 'iphone13')
+    dp.register_callback_query_handler(handle_buy_iphone11, lambda query: query.data == 'buy_iphone11')
+    dp.register_callback_query_handler(handle_buy_iphone12, lambda query: query.data == 'buy_iphone12')
+    dp.register_callback_query_handler(handle_buy_iphone13, lambda query: query.data == 'buy_iphone13')
     dp.register_callback_query_handler(handle_back_button, lambda query: query.data == 'back')
     dp.register_callback_query_handler(handle_application_button, lambda query: query.data == 'application')
     dp.register_message_handler(stop_handler, state="*", commands='stop')
     dp.register_message_handler(stop_handler, Text(equals='stop', ignore_case=True), state="*")
-    dp.register_callback_query_handler(handle_buy_button, lambda query: query.data == 'buy')
     dp.register_callback_query_handler(handler_course, lambda query: query.data == 'coursedollar')

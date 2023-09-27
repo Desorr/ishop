@@ -67,7 +67,7 @@ async def sql_add_command(data):
 # Посмотреть весь контент
 async def sql_read(message):
     for ret in cur.execute('SELECT * FROM menu').fetchall():
-        await bot.send_photo(message.from_user.id, ret[0], f'{ret[1]}\nОписание: {ret[2]}\nЦена {ret[-2]} BYN')
+        await bot.send_photo(message.from_user.id, ret[0], f'{ret[1]}\nОписание: {ret[2]}\nЦена {ret[-2]} RUB')
 
 
 # Посмотреть весь контент для удаления
@@ -80,6 +80,20 @@ def get_product_info(name):
     cur.execute('SELECT img, name, description, price FROM menu WHERE name = ?', (name,))
     product_info = cur.fetchone()
     return product_info
+
+
+# Получить цену товара в типе Float
+def get_product_price(name):
+    cur.execute("SELECT price FROM menu WHERE name=?", (name,))
+    result = cur.fetchone()
+    if result:
+        price_text = result[0]
+        try:
+            price = float(price_text)
+            return price
+        except ValueError:
+            print(f"Ошибка конвертации цены '{price_text}' в тип float.")
+            return None
 
 
 # Удалить объект из контента
